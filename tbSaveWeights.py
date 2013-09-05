@@ -1,28 +1,21 @@
-# import maya.cmds as cmds
-# cmds.file(new=1, f=1)
-# cmds.unloadPlugin('tbSaveWeights.py')
-# cmds.loadPlugin('tbSaveWeights.py')
-# cmds.createNode('tbSaveWeights')
-
-
+# ---- Save python file to plugin directory ----
+# ---- Re-Open Maya ----
 # import maya.cmds as cmds
 # import maya.mel as mel
 # cmds.unloadPlugin('tbSaveWeights.py')
 # cmds.loadPlugin('tbSaveWeights.py')
-# mel.eval('tbSaveSkinWeights -a "export" -f "d:/weights.xml"')
 
-"""
-TODOS
-- Create a qt designer UI
-- Add a pretty print option
-    - Give the user a warning box, tell them it will be slower
-    - Tell them why as well (uses minidom)
-- Add more exception handling
-- organize by utility functions
-- Add another import method via plugs or setWeights?
-- add a percentage bar thingy?
-    - should add a percentage bar in the UI while it's running
-"""
+# ---- Export Weights ----
+# ---- Select Mesh ----
+# mel.eval('tbSaveSkinWeights -a "export" -f "c:/weights.xml"')
+
+# ---- Import Weights ----
+# ---- Select Mesh ----
+# mel.eval('tbSaveSkinWeights -a "import" -f "c:/weights.xml"')
+
+# Code Resources: Nicholas Bolden, Tyler Thornock
+# TO DO: Add boiler plate
+
 import sys
 import time
 import xml.etree.cElementTree as cElement
@@ -44,9 +37,6 @@ kTbSaveWeightsFileFlag = '-f'
 kTbSaveWeightsFileLongFlag = '-File'
 kTbSaveWeightsActionFlag = "-a"
 kTbSaveWeightsActionLongFlag = "-Action"
-# kTbSaveWeightsRoundFlag = "-r"
-# kTbSaveWeightsRoundLongFlag = "-roundOff"
-
 
 class tbSaveSkinWeights(ompx.MPxCommand):
     def __init__(self):
@@ -59,29 +49,12 @@ class tbSaveSkinWeights(ompx.MPxCommand):
         self.skinCluster = 'skinCluster1'
         self.weights = {}
 
-    # def setFlagValues(self, argData, mfn, fileFlagSet, actionFlagSet):
-    #     if fileFlagSet:
-    #         fileArg = argData.flagArgumentString(kTbSaveWeightsFileFlag, 0)
-    #         mplug = mfn.findPlug(kTbSaveWeightsFileParam)
-    #         mplug.setString(fileArg)
-
-    #     if actionFlagSet:
-    #         actionArg = argData.flagArgumentString(kTbSaveWeightsActionFlag, 0)
-    #         mplug = mfn.findPlug(kTbSaveWeightsActionParam)
-    #         mplug.setString(actionArg)
-
     def doIt(self, argList):
         argData = om.MArgDatabase(self.syntax(), argList)
-        # mg = om.MGlobal
 
         # Check our flags
         fileFlagSet = argData.isFlagSet(kTbSaveWeightsFileFlag)
         actionFlagSet = argData.isFlagSet(kTbSaveWeightsActionFlag)
-        # roundOffFlagSet = argData.isFlagSet(kTbSaveWeightsRoundFlag)
-
-        # If we are not querying or editing, we are creating:
-        # mg.selectCommand()
-        # res = om.MCommandResult()
 
         if fileFlagSet:
             self.fileName = argData.flagArgumentString(kTbSaveWeightsFileFlag, 0)
@@ -100,7 +73,6 @@ class tbSaveSkinWeights(ompx.MPxCommand):
             print 'Exporting weights...'
             self.skinCluster = self.getSkinCluster()
             self.infDags = self.getInfDags(self.skinCluster)
-            # self.infNames = self.getInfNames(self.infDags, self.skinCluster)
             self.weights = self.saveWeights(self.infDags, self.skinCluster)
             self.exportWeights(self.weights, self.fileName)
 
@@ -133,29 +105,26 @@ class tbSaveSkinWeights(ompx.MPxCommand):
 
         clusterName = clusterNode.name()
 
-        # loop through the weights dictionary
+        # Loop through the weights dictionary
         for vertId, weightData in weights.items():
             wlAttr = '%s.weightList[%s]' % (clusterName, vertId)
 
             for infId, infValue in weightData.items():
                 wAttr = '.weights[%s]' % infId
 
-                '''
-                TO DO: get a better weighted mesh
-                '''
-
+                # TODO: Check to make sure influence object weights add to 1
                 a = [float(i) for i in weightData.values()]
                 infValueSumCheck = round(sum(a), 2)
                 b = self.infNames[int(infId)] + '.worldMatrix[0]'
                 c = clusterName + '.matrix[%d]' % int(infId)
+                # Check to make sure influence objects are connected to mesh
                 isConnectedCheck = cmds.isConnected(b, c)
 
                 if infValueSumCheck and isConnectedCheck:
-                # if 1 == 0:
-                    # PRIMARY METHOD - FAST
+                    # PRIMARY METHOD - VERY FAST
                     cmds.setAttr(wlAttr + wAttr, float(infValue))
                 else:
-                    # ALT METHOD - SLOW
+                    # ALT METHOD - VERY SLOW
                     cmds.skinPercent(clusterName, '%s.vtx[%d]' % (self.selName, int(vertId)),
                                      transformValue=[(self.infNames[int(infId)], float(infValue))])
 
@@ -211,6 +180,9 @@ class tbSaveSkinWeights(ompx.MPxCommand):
         return skinFn
 
     def getSelString(self):
+        """
+        Get Selected object as a selectionString to be passed around methods
+        """
         sel = om.MSelectionList()
         om.MGlobal.getActiveSelectionList(sel)
         selObjs = []
@@ -218,6 +190,9 @@ class tbSaveSkinWeights(ompx.MPxCommand):
         return selObjs[0]
 
     def getInfDags(self, skinFn):
+        """
+        Get influence dag objects to be passed around methods
+        """
         infDags = om.MDagPathArray()
         skinFn.influenceObjects(infDags)
         return infDags
@@ -294,7 +269,6 @@ class tbSaveSkinWeights(ompx.MPxCommand):
             index = vertId.get('index')
             # print 'index:', index
             weights[index] = {}
-            # print '!!!'
             for inf in vertId:
                 attribs = {inf.get('idx'): inf.get('weight')}
                 # print attribs
@@ -304,10 +278,12 @@ class tbSaveSkinWeights(ompx.MPxCommand):
         print('Read time was %g seconds' % (endTime - startTime))
         return weights
 
-    def exportWeights(self, weights={}, fileName=None, printPretty=False):
+    def exportWeights(self, weights={}, fileName=None, printPretty=True):
         """
         Generate an XML document
         """
+        # TO DO: Add pretty print option flag - will build this into qt widget ui
+        
         startTime = time.time()
 
         # Write to XML using cElementTree
@@ -370,7 +346,6 @@ def syntaxCreator():
     syntax = om.MSyntax()
     syntax.addFlag(kTbSaveWeightsFileFlag, kTbSaveWeightsFileLongFlag, om.MSyntax.kString)
     syntax.addFlag(kTbSaveWeightsActionFlag, kTbSaveWeightsActionLongFlag, om.MSyntax.kString)
-    # syntax.addFlag(kTbSaveWeightsRoundFlag, kTbSaveWeightsRoundLongFlag, om.MSyntax)
     return syntax
 
 
