@@ -1,15 +1,15 @@
-# ---- Save python file to plugin directory ----
+# ---- Save python file to Maya plugin directory ----
 # ---- Re-Open Maya ----
 # import maya.cmds as cmds
 # import maya.mel as mel
 # cmds.unloadPlugin('tbSaveWeights.py')
 # cmds.loadPlugin('tbSaveWeights.py')
 
-# ---- Export Weights ----
+# ---- To Export Weights ----
 # ---- Select Mesh ----
 # mel.eval('tbSaveSkinWeights -a "export" -f "c:/weights.xml"')
 
-# ---- Import Weights ----
+# ---- To Import Weights ----
 # ---- Select Mesh ----
 # mel.eval('tbSaveSkinWeights -a "import" -f "c:/weights.xml"')
 
